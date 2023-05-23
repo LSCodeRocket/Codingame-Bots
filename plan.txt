@@ -1,0 +1,34 @@
+Verbally planning the program will make it easier to code.
+
+STRATEGY:
+
+# Since boxes don't do damage, they can be ignored.
+
+# Skeletons and boxes can be considered low-level since they do not pose any immediate threat to the hero. Skeletons can be ignored if they are at range > 1.
+
+# Ranged weapons should basically only be used on Gargoyles or Orcs. 
+Orcs do ranged damage and can be one-shotted with a bow at range; if bow is unavailable just move toward them and kill with sword. 
+Scythes are only effective against Gargoyles; since they cannot be one-shotted with a sword, hit them once with a scythe at range then kill them with a sword.
+
+# While hammer does splash damage, it is only preferred against groups of skeletons or gargoyles.
+Hammer will one-shot skeletons, making it the best option for groups of these monsters.
+
+# Vampires do the most damage, but can easily be one-shotted with a sword since they don't have range. Prioritize killing these monsters when they are adjacent to the hero.
+
+PROCESS:
+
+1. Move through the maze randomly and kill any monsters encountered. Ignore unnecessary fights (like if a skeleton is out of viewing range from the hero). Pick up treasure and weapon charges unconditionally. We can implement Rock's finite-state machine for this.
+2. If health is low (I'll define this as <= 13, but this can be discussed later) pick up a potion previously found.
+3. When exit is found, go into RAGE mode: explore the rest of the map and kill remaining monsters; exit the map when the turns left are low or when the entire map is explored.
+
+CODEKEEPER DEVELOPMENT GOALS:
+
+# Create a system to identify entities that are logged into the entity_list. I don't even know how anonymous objects are stored, but it's impossible right now to reference them.
+
+# Define a function to determine the no. of monsters in range x from the hero, where 1 <= x <= 3.
+
+# Code three states for the hero: FIGHT, EXPLORE, and RAGE.
+
+# Define a function to determine if the turns left are enough for the hero to get back to the exit.
+
+# Come up with a way to explore the map efficiently (like logging any unexplored passages).
