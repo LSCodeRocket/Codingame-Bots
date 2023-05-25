@@ -1,4 +1,4 @@
-# Codingame-Bots
+# Spring Challenge 2023 Strategies
 
 ## Wood 2 League Strategy
 
