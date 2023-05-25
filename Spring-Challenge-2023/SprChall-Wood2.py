@@ -43,15 +43,6 @@ bases_num = int(input())  # no. of bases
 my_base_indexes = [int(i) for i in input().split()]  # indexes of our bases
 opp_base_indexes = [int(i) for i in input().split()]  # indexes of opponent bases
 
-
-def cell_dist(cell):
-    # finds the shortest path from the base to a cell
-    # iterates through possible paths
-
-    paths = []
-    return min([len(path) for path in paths])
-
-
 # game loop
 while True:
     for i in range(cells_num):
