@@ -19,13 +19,22 @@ class CellConnections:
         self.cells[index1][index2] = 1
         self.cells[index2][index1] = 1
 
+    def CellIsWorthPathing(self, index_start, current_index):
+        ARE_THE_CELLS_CONNECTED = self.cells[index_start][current_index] == 1
+        IS_CURRENT_FLOODFILL_VALUE_GREATER = self.flood_fill_vector[current_index] > self.flood_fill_vector[index_start]
+
+        return ARE_THE_CELLS_CONNECTED and IS_CURRENT_FLOODFILL_VALUE_GREATER
+
+    def HasPathEnded(self, current_path_index, index_end):
+        return current_path_index == index_end
+
     def PathFinder(self, index_start, index_end, current_path = []):
         for i in range(self.cell_count):
-            if self.cells[index_start][i] == 1 and self.flood_fill_vector[i] > self.flood_fill_vector[index_start]:
+            if self.CellIsWorthPathing(index_start, i):
                 path = current_path.copy()
                 path.append(i)
 
-                if i == index_end:
+                if self.HasPathEnded(i, index_end):
                     return path
 
                 result_path = self.PathFinder(i, index_end, path)
