@@ -20,22 +20,16 @@ class CellConnections:
         self.cells[index1][index2] = 1
         self.cells[index2][index1] = 1
 
-    def CellIsWorthPathing(self, index_start, current_index):
-        ARE_THE_CELLS_CONNECTED = self.cells[index_start][current_index] == 1
-        IS_CURRENT_FLOODFILL_VALUE_GREATER = self.flood_fill_vector[current_index] > self.flood_fill_vector[index_start]
-
-        return ARE_THE_CELLS_CONNECTED and IS_CURRENT_FLOODFILL_VALUE_GREATER
-
-    def HasPathEnded(self, current_path_index, index_end):
-        return current_path_index == index_end
-
-    def PathFinder(self, index_start, index_end, current_path = []):
+    def PathFinder(self, index_start, index_end, current_path=[]):
         for i in range(self.cell_count):
-            if self.CellIsWorthPathing(index_start, i):
+            if (
+                self.cells[index_start][i] == 1
+                and self.flood_fill_vector[i] > self.flood_fill_vector[index_start]
+            ):
                 path = current_path.copy()
                 path.append(i)
 
-                if self.HasPathEnded(i, index_end):
+                if i == index_end:
                     return path
 
                 result_path = self.PathFinder(i, index_end, path)
@@ -104,7 +98,7 @@ class CellInformation:
             if self.neighbors[i] != -1:
                 connection_object.Connect(self.neighbors[i], self.cell_index)
 
-    def FrameUpdate(self, cell_frame_information):
+    def CellInfoUpdate(self, cell_frame_information):
         resources, my_ants, opp_ants = cell_frame_information
         self.resources = resources
         self.my_ants = my_ants
@@ -119,6 +113,7 @@ class AlgorithmBot:
         self.InitializeCellInformation()
         self.InitializeBaseInformation()
         self.InitializeControllerVariables()
+        self.state = "EGG"
 
     def InitializeControllerVariables(self):
         self.distances = []
@@ -142,19 +137,23 @@ class AlgorithmBot:
                 CellInformation(i, self.connection_object, given_cell_info)
             )
 
+    def FindCellsOfType(self, cell_type: int):
+        cells_of_type = []
+        for cell_object in self.cell_list:
+            if cell_object.cell_type == cell_type:
+                cells_of_type.append(cell_object)
+
     def RecordDistances(self, index):
         if (
-            self.cell_list[index].cell_type == CellInformation.CRYSTAL
+            self.cell_list[index].cell_type != CellInformation.EMPTY
             and self.cell_list[index].resources != 0
-            and index != self.my_base_indexes
+            and index not in self.my_base_indexes
         ):
             self.distances.append(
                 self.connection_object.ComputeFloodFillDistance(
                     self.my_base_indexes[0], index
                 )
             )
-        else:
-            self.distances.append(math.inf)
 
     def ChooseTwoTargetsBasedOnDistances(self):
         distances = self.distances.copy()
@@ -174,10 +173,13 @@ class AlgorithmBot:
     def FrameUpdate(self):
         self.distances = []
         for i in range(self.cells_num):
-            self.cell_list[i].FrameUpdate([int(j) for j in input().split()])
+            self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
             self.RecordDistances(i)
 
     def Action(self):
+        eggs = self.FindCellsOfType(CellInformation.EGGS)
+        crystals = self.FindCellsOfType(CellInformation.CRYSTAL)
+
         first_index, second_index = self.ChooseTwoTargetsBasedOnDistances()
         if second_index != -1:
             print(
