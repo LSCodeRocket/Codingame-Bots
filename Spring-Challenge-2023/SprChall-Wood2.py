@@ -191,7 +191,7 @@ class AlgorithmBot:
 
         if index_num == 2:
             print(
-                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}; LINE {self.my_base_indexes[0]} {indexes[1]} {self.cell_list[second_index].resources}"
+                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}; LINE {self.my_base_indexes[0]} {indexes[1]} {self.cell_list[indexes].resources}"
             )
         else:
             print(
