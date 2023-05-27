@@ -110,6 +110,7 @@ class CellInformation:
 
 class AlgorithmBot:
     STATES = ("EGG", "CRYSTAL")
+    TARGET_NUM = 2
 
     def __init__(self):
         self.InitializeCellInformation()
@@ -135,39 +136,28 @@ class AlgorithmBot:
                 CellInformation(i, self.connection_object, given_cell_info)
             )
 
-    def FindNonEmptyCells(self, cell_type):
-        cells_of_type = [
-            cell
-            for cell in self.cell_list
-            if cell.cell_type == cell_type and cell.resources > 0
-        ]
-        return cells_of_type
+    def FindCellsOfType(self, cell_type):
+        return [cell for cell in self.cell_list if cell.cell_type == cell_type]
 
     def FindDistance(self, index):
         return self.connection_object.ComputeFloodFillDistance(
             self.my_base_indexes[0], index
         )
 
-    def ChooseClosestTargetsOfType(self, target_type):
-        targets = self.FindNonEmptyCells(target_type)
-        target_distances = [self.FindDistance(target.cell_index) for target in targets]
+    def FindClosestTargetsOfType(self, target_type, target_num):
+        targets = self.FindCellsOfType(target_type)
+        target_distances = np.array(
+            [self.FindDistance(target.cell_index) for target in targets]
+        )
 
-        first_index = target_distances.argmin()
-        target_distances.delete(first_index)
+        closest_targets = []
 
-        second_index = target_distances.argmin()
+        for i in range(min(target_num, len(targets))):
+            index = target_distances.argmin()
+            closest_targets.append(targets[index].cell_index)
+            target_distances[index] = target_distances.max() + 1
 
-        if first_index <= second_index:
-            second_index += 1
-
-        if targets[second_index].resources > 0:
-            return (
-                targets[first_index].cell_index,
-                targets[second_index].cell_index,
-                2,
-            )
-        else:
-            return (targets[first_index].cell_index, 1)
+        return closest_targets
 
     def FrameUpdate(self):
         for i in range(self.cells_num):
@@ -178,25 +168,18 @@ class AlgorithmBot:
             self.state = state
 
     def Action(self):
+        if len(self.FindCellsOfType(CellInformation.EGG)) == 0 and self.state == "EGG":
+            self.ChangeState("CRYSTAL")
+
         if self.state == "EGG":
             target_type = CellInformation.EGG
         elif self.state == "CRYSTAL":
             target_type = CellInformation.CRYSTAL
 
-        non_empty_targets = self.FindNonEmptyCells(target_type)
-        if len(non_empty_targets) == 0 and self.state == "EGG":
-            self.ChangeState("CRYSTAL")
-
-        *indexes, index_num = self.ChooseClosestTargetsOfType(target_type)
-
-        if index_num == 2:
-            print(
-                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}; LINE {self.my_base_indexes[0]} {indexes[1]} {self.cell_list[indexes].resources}"
-            )
-        else:
-            print(
-                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}"
-            )
+        command = ""
+        for index in self.FindClosestTargetsOfType(target_type, self.TARGET_NUM):
+            command += f"LINE {self.my_base_indexes[0]} {index} {self.cell_list[index].resources};"
+        print(command)
 
 
 C = AlgorithmBot()
