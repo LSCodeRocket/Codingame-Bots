@@ -109,6 +109,8 @@ class CellInformation:
 
 
 class AlgorithmBot:
+    STATES = ("EGG", "CRYSTAL")
+
     def __init__(self):
         self.InitializeCellInformation()
         self.InitializeBaseInformation()
@@ -133,10 +135,10 @@ class AlgorithmBot:
                 CellInformation(i, self.connection_object, given_cell_info)
             )
 
-    def FindNonEmptyCells(self, cell_type, cell_list):
+    def FindNonEmptyCells(self, cell_type):
         cells_of_type = [
             cell
-            for cell in cell_list
+            for cell in self.cell_list
             if cell.cell_type == cell_type and cell.resources > 0
         ]
         return cells_of_type
@@ -146,8 +148,8 @@ class AlgorithmBot:
             self.my_base_indexes[0], index
         )
 
-    def ChooseTargetsBasedOnDistances(self, target_type):
-        targets = self.FindNonEmptyCells(target_type, self.cell_list)
+    def ChooseClosestTargetsOfType(self, target_type):
+        targets = self.FindNonEmptyCells(target_type)
         target_distances = [self.FindDistance(target.cell_index) for target in targets]
 
         first_index = target_distances.argmin()
@@ -171,14 +173,21 @@ class AlgorithmBot:
         for i in range(self.cells_num):
             self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
 
+    def ChangeState(self, state):
+        if state in self.STATES:
+            self.state = state
+
     def Action(self):
-        target_type = None
         if self.state == "EGG":
             target_type = CellInformation.EGG
         elif self.state == "CRYSTAL":
             target_type = CellInformation.CRYSTAL
 
-        *indexes, index_num = self.ChooseTargetsBasedOnDistances(target_type)
+        non_empty_targets = self.FindNonEmptyCells(target_type)
+        if len(non_empty_targets) == 0 and self.state == "EGG":
+            self.ChangeState("CRYSTAL")
+
+        *indexes, index_num = self.ChooseClosestTargetsOfType(target_type)
 
         if index_num == 2:
             print(
