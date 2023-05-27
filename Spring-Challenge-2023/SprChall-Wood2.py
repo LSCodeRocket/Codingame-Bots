@@ -73,7 +73,7 @@ class CellConnections:
 
 class CellInformation:
     EMPTY = 0
-    EGGS = 1
+    EGG = 1
     CRYSTAL = 2
 
     def __init__(
@@ -112,11 +112,7 @@ class AlgorithmBot:
     def __init__(self):
         self.InitializeCellInformation()
         self.InitializeBaseInformation()
-        self.InitializeControllerVariables()
         self.state = "EGG"
-
-    def InitializeControllerVariables(self):
-        self.distances = []
 
     def InitializeBaseInformation(self):
         self.bases_num = int(input())  # no. of bases
@@ -137,57 +133,60 @@ class AlgorithmBot:
                 CellInformation(i, self.connection_object, given_cell_info)
             )
 
-    def FindCellsOfType(self, cell_type: int):
-        cells_of_type = []
-        for cell_object in self.cell_list:
-            if cell_object.cell_type == cell_type:
-                cells_of_type.append(cell_object)
+    def FindNonEmptyCells(self, cell_type, cell_list):
+        cells_of_type = [
+            cell
+            for cell in cell_list
+            if cell.cell_type == cell_type and cell.resources > 0
+        ]
+        return cells_of_type
 
-    def RecordDistances(self, index):
-        if (
-            self.cell_list[index].cell_type != CellInformation.EMPTY
-            and self.cell_list[index].resources != 0
-            and index not in self.my_base_indexes
-        ):
-            self.distances.append(
-                self.connection_object.ComputeFloodFillDistance(
-                    self.my_base_indexes[0], index
-                )
-            )
+    def FindDistance(self, index):
+        return self.connection_object.ComputeFloodFillDistance(
+            self.my_base_indexes[0], index
+        )
 
-    def ChooseTwoTargetsBasedOnDistances(self):
-        distances = self.distances.copy()
-        first_index = np.array(distances).argmin()
-        distances.remove(distances[first_index])
+    def ChooseTargetsBasedOnDistances(self, target_type):
+        targets = self.FindNonEmptyCells(target_type, self.cell_list)
+        target_distances = [self.FindDistance(target.cell_index) for target in targets]
 
-        second_index = np.array(distances).argmin()
+        first_index = target_distances.argmin()
+        target_distances.delete(first_index)
+
+        second_index = target_distances.argmin()
 
         if first_index <= second_index:
             second_index += 1
 
-        if self.cell_list[second_index].resources == 0:
-            second_index = -1
-
-        return (first_index, second_index)
+        if targets[second_index].resources > 0:
+            return (
+                targets[first_index].cell_index,
+                targets[second_index].cell_index,
+                2,
+            )
+        else:
+            return (targets[first_index].cell_index, 1)
 
     def FrameUpdate(self):
-        self.distances = []
         for i in range(self.cells_num):
             self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
-            self.RecordDistances(i)
 
     def Action(self):
-        eggs = self.FindCellsOfType(CellInformation.EGGS)
-        crystals = self.FindCellsOfType(CellInformation.CRYSTAL)
+        target_type = None
+        if self.state == "EGG":
+            target_type = CellInformation.EGG
+        elif self.state == "CRYSTAL":
+            target_type = CellInformation.CRYSTAL
 
-        first_index, second_index = self.ChooseTwoTargetsBasedOnDistances()
-        if second_index != -1:
+        *indexes, index_num = self.ChooseTargetsBasedOnDistances(target_type)
+
+        if index_num == 2:
             print(
-                f"LINE {self.my_base_indexes[0]} {first_index} {self.cell_list[first_index].resources}; LINE {self.my_base_indexes[0]} {second_index} {self.cell_list[second_index].resources}"
+                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}; LINE {self.my_base_indexes[0]} {indexes[1]} {self.cell_list[second_index].resources}"
             )
         else:
             print(
-                f"LINE {self.my_base_indexes[0]} {first_index} {self.cell_list[first_index].resources}"
+                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}"
             )
 
 
