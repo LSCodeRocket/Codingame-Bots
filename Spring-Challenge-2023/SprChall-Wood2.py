@@ -159,6 +159,14 @@ class AlgorithmBot:
 
         return closest_targets
 
+    def MoveToClosestTargetsOfType(self, target_type):
+        print(
+            *[
+                f"LINE {self.my_base_indexes[0]} {index} {self.cell_list[index].resources};"
+                for index in self.FindClosestTargetsOfType(target_type, self.TARGET_NUM)
+            ]
+        )
+
     def FrameUpdate(self):
         for i in range(self.cells_num):
             self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
@@ -167,19 +175,19 @@ class AlgorithmBot:
         if state in self.STATES:
             self.state = state
 
-    def Action(self):
-        if len(self.FindCellsOfType(CellInformation.EGG)) == 0 and self.state == "EGG":
+    def EggAction(self):
+        target_type = CellInformation.EGG
+
+        if len(self.FindCellsOfType(target_type)) == 0:
             self.ChangeState("CRYSTAL")
+            self.CrystalAction()
+        else:
+            self.MoveToClosestTargetsOfType(target_type)
 
-        if self.state == "EGG":
-            target_type = CellInformation.EGG
-        elif self.state == "CRYSTAL":
-            target_type = CellInformation.CRYSTAL
+    def CrystalAction(self):
+        target_type = CellInformation.CRYSTAL
 
-        command = ""
-        for index in self.FindClosestTargetsOfType(target_type, self.TARGET_NUM):
-            command += f"LINE {self.my_base_indexes[0]} {index} {self.cell_list[index].resources};"
-        print(command)
+        self.MoveToClosestTargetsOfType(target_type)
 
 
 C = AlgorithmBot()
@@ -187,5 +195,9 @@ C = AlgorithmBot()
 # game loop
 while True:
     C.FrameUpdate()
-    C.Action()
+    if C.state == "EGG":
+        C.EggAction()
+    elif C.state == "CRYSTAL":
+        C.CrystalAction()
+
     # WAIT | LINE <sourceIdx> <targetIdx> <strength> | BEACON <cellIdx> <strength> | MESSAGE <text>
