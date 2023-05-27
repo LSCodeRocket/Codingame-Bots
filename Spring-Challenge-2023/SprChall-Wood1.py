@@ -4,54 +4,48 @@ import numpy as np
 
 DEBUG_FLAG = True
 
+
 def DebugLog(message):
     if DEBUG_FLAG:
-        print(message, file = sys.stderr)
+        print(message, file=sys.stderr)
 
 
 class CellConnections:
     def __init__(self, cell_count):
         self.cell_count = cell_count
-        self.flood_fill_vector = [ -1 for i in range(self.cell_count) ]
-        self.cells = [ [ 0 for i in range(cell_count) ] for j in range(cell_count) ]
-    
+        self.flood_fill_vector = [-1 for i in range(self.cell_count)]
+        self.cells = [[0 for i in range(cell_count)] for j in range(cell_count)]
+
     def Connect(self, index1, index2):
         self.cells[index1][index2] = 1
         self.cells[index2][index1] = 1
 
-    def CellIsWorthPathing(self, index_start, current_index):
-        ARE_THE_CELLS_CONNECTED = self.cells[index_start][current_index] == 1
-        IS_CURRENT_FLOODFILL_VALUE_GREATER = self.flood_fill_vector[current_index] > self.flood_fill_vector[index_start]
-
-        return ARE_THE_CELLS_CONNECTED and IS_CURRENT_FLOODFILL_VALUE_GREATER
-
-    def HasPathEnded(self, current_path_index, index_end):
-        return current_path_index == index_end
-
-    def PathFinder(self, index_start, index_end, current_path = []):
+    def PathFinder(self, index_start, index_end, current_path=[]):
         for i in range(self.cell_count):
-            if self.CellIsWorthPathing(index_start, i):
+            if (
+                self.cells[index_start][i] == 1
+                and self.flood_fill_vector[i] > self.flood_fill_vector[index_start]
+            ):
                 path = current_path.copy()
                 path.append(i)
 
-                if self.HasPathEnded(i, index_end):
+                if i == index_end:
                     return path
 
                 result_path = self.PathFinder(i, index_end, path)
                 if result_path[-1] == index_end:
                     return result_path
-        return [-1] 
+        return [-1]
 
-        
     def ComputeOptimalPath(self, index1, index2):
         path = self.PathFinder(index1, index2)
         return path
-        
+
     def ComputeFloodFillDistance(self, index1, index2):
         if index1 == index2:
             return 0
 
-        self.flood_fill_vector = [ -1 for i in range(self.cell_count) ]
+        self.flood_fill_vector = [-1 for i in range(self.cell_count)]
         self.flood_fill_vector[index1] = 0
 
         self.ComputeNeighbors(0, index1)
@@ -60,8 +54,10 @@ class CellConnections:
 
     def ChooseCellsToFlood(self, cells_to_flood, index, targetindex):
         if self.cells[index][targetindex] == 1:
-
-            if self.flood_fill_vector[targetindex] > self.flood_fill_vector[index] or self.flood_fill_vector[targetindex] == -1:
+            if (
+                self.flood_fill_vector[targetindex] > self.flood_fill_vector[index]
+                or self.flood_fill_vector[targetindex] == -1
+            ):
                 cells_to_flood.append(targetindex)
 
                 self.flood_fill_vector[targetindex] = self.flood_fill_vector[index] + 1
@@ -72,34 +68,37 @@ class CellConnections:
             self.ChooseCellsToFlood(cells_to_flood, index, i)
 
         for i in range(len(cells_to_flood)):
-            self.ComputeNeighbors( current_value + 1, cells_to_flood[i] )
-        
+            self.ComputeNeighbors(current_value + 1, cells_to_flood[i])
+
 
 class CellInformation:
-
     EMPTY = 0
-    EGGS = 1
+    EGG = 1
     CRYSTAL = 2
 
-    def __init__(self, cell_index, connection_object, cell_information_list = [None for i in range(7)]):
-        self.cell_index = cell_index 
+    def __init__(
+        self,
+        cell_index,
+        connection_object,
+        cell_information_list=[None for i in range(7)],
+    ):
+        self.cell_index = cell_index
         self.SetData(connection_object, cell_information_list)
-        
+
     def SetData(self, connection_object, cell_information_list):
         self.cell_type = cell_information_list[0]
         self.resources = cell_information_list[1]
         self.my_ants = 0
         self.opp_ants = 0
-        self.neighbors = cell_information_list[2:len(cell_information_list)]
-        self.ConnectToNeighbors(connection_object) 
-
+        self.neighbors = cell_information_list[2:]
+        self.ConnectToNeighbors(connection_object)
 
     def ConnectToNeighbors(self, connection_object):
         for i in range(len(self.neighbors)):
             if self.neighbors[i] != -1:
                 connection_object.Connect(self.neighbors[i], self.cell_index)
-        
-    def FrameUpdate(self, cell_frame_information):
+
+    def CellInfoUpdate(self, cell_frame_information):
         resources, my_ants, opp_ants = cell_frame_information
         self.resources = resources
         self.my_ants = my_ants
@@ -108,63 +107,98 @@ class CellInformation:
         if resources == 0:
             self.cell_type = CellInformation.EMPTY
 
-class AlgorithmBot:
-    def __init__(self):
-        self.InitalizeCellInformation()
-        self.InitalizeBaseInformation()
-        self.InitalizeControllerVariables()
 
-    def InitalizeControllerVariables(self):
-        self.distances = []
-        
-    def InitalizeBaseInformation(self):
-        self.bases_num = int(input())  # no. of basesi
+class AlgorithmBot:
+    STATES = ("EGG", "CRYSTAL")
+
+    def __init__(self):
+        self.InitializeCellInformation()
+        self.InitializeBaseInformation()
+        self.state = "EGG"
+
+    def InitializeBaseInformation(self):
+        self.bases_num = int(input())  # no. of bases
         self.my_base_indexes = [int(i) for i in input().split()]  # indexes of our bases
-        self.opp_base_indexes = [int(i) for i in input().split()]  # indexes of opponent bases
-        
-    def InitalizeCellInformation(self):
+        self.opp_base_indexes = [
+            int(i) for i in input().split()
+        ]  # indexes of opponent bases
+
+    def InitializeCellInformation(self):
         self.cells_num = int(input())  # no. of cells
         self.connection_object = CellConnections(self.cells_num)
-        self.cell_list = []  # list of CellInformation objects with cell information about current cells
+        self.cell_list = (
+            []
+        )  # list of CellInformation objects with cell information about current cells
         for i in range(self.cells_num):
             given_cell_info = [int(j) for j in input().split()]
-            self.cell_list.append( CellInformation( i, self.connection_object, given_cell_info ) )
-        
-    def RecordDistances(self, index):
-        if (self.cell_list[index].cell_type == CellInformation.CRYSTAL or self.cell_list[index].cell_type == CellInformation.EGGS) and self.cell_list[index].resources != 0 and index != self.my_base_indexes:
-            self.distances.append( self.connection_object.ComputeFloodFillDistance(self.my_base_indexes[0], index) )
-        else:
-            self.distances.append( math.inf )
+            self.cell_list.append(
+                CellInformation(i, self.connection_object, given_cell_info)
+            )
 
-    def ChooseTwoTargetsBasedOnDistances(self):
-        distances = self.distances.copy()
-        first_index = np.array(distances).argmin()
-        distances.remove(distances[first_index])
+    def FindNonEmptyCells(self, cell_type):
+        cells_of_type = [
+            cell
+            for cell in self.cell_list
+            if cell.cell_type == cell_type and cell.resources > 0
+        ]
+        return cells_of_type
 
-        second_index = np.array(distances).argmin()
+    def FindDistance(self, index):
+        return self.connection_object.ComputeFloodFillDistance(
+            self.my_base_indexes[0], index
+        )
+
+    def ChooseClosestTargetsOfType(self, target_type):
+        targets = self.FindNonEmptyCells(target_type)
+        target_distances = [self.FindDistance(target.cell_index) for target in targets]
+
+        first_index = target_distances.argmin()
+        target_distances.delete(first_index)
+
+        second_index = target_distances.argmin()
 
         if first_index <= second_index:
             second_index += 1
-            
-            
-        if self.cell_list[second_index].resources == 0:
-            second_index = -1
 
-        return (first_index, second_index)
-    
-    def FrameUpdate(self):
-        self.distances = []
-        for i in range(self.cells_num):
-            self.cell_list[i].FrameUpdate([int(j) for j in input().split()])
-            self.RecordDistances(i)
-    
-    def Action(self):
-        first_index, second_index = self.ChooseTwoTargetsBasedOnDistances()
-        if second_index != -1:
-            print(f"LINE {self.my_base_indexes[0]} {first_index} {self.cell_list[first_index].resources}; LINE {self.my_base_indexes[0]} {second_index} {self.cell_list[second_index].resources}")
+        if targets[second_index].resources > 0:
+            return (
+                targets[first_index].cell_index,
+                targets[second_index].cell_index,
+                2,
+            )
         else:
-            print(f"LINE {self.my_base_indexes[0]} {first_index} {self.cell_list[first_index].resources}")
-        
+            return (targets[first_index].cell_index, 1)
+
+    def FrameUpdate(self):
+        for i in range(self.cells_num):
+            self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
+
+    def ChangeState(self, state):
+        if state in self.STATES:
+            self.state = state
+
+    def Action(self):
+        if self.state == "EGG":
+            target_type = CellInformation.EGG
+        elif self.state == "CRYSTAL":
+            target_type = CellInformation.CRYSTAL
+
+        non_empty_targets = self.FindNonEmptyCells(target_type)
+        if len(non_empty_targets) == 0 and self.state == "EGG":
+            self.ChangeState("CRYSTAL")
+
+        *indexes, index_num = self.ChooseClosestTargetsOfType(target_type)
+
+        if index_num == 2:
+            print(
+                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}; LINE {self.my_base_indexes[0]} {indexes[1]} {self.cell_list[indexes].resources}"
+            )
+        else:
+            print(
+                f"LINE {self.my_base_indexes[0]} {indexes[0]} {self.cell_list[indexes[0]].resources}"
+            )
+
+
 C = AlgorithmBot()
 
 # game loop
