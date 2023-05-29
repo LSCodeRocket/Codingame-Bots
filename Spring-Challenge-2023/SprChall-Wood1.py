@@ -142,7 +142,12 @@ class AlgorithmBot:
     def FindClosestTargetsOfType(self, target_type, target_num):
         targets = self.FindCellsOfType(target_type)
         target_distances = np.array(
-            [self.FindDistance(target.cell_index) for target in targets]
+            [
+                self.connection_object.ComputeFloodFillDistance(
+                    self.my_base_indexes[0], target.cell_index
+                )
+                for target in targets
+            ]
         )
 
         closest_targets = []
