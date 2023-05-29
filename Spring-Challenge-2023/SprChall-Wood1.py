@@ -143,7 +143,7 @@ class AlgorithmBot:
         return self.connection_object.ComputeFloodFillDistance(
             self.my_base_indexes[0], index
         )
-
+        
     def FindClosestTargetsOfType(self, target_type, target_num):
         targets = self.FindCellsOfType(target_type)
         target_distances = np.array(
@@ -170,34 +170,71 @@ class AlgorithmBot:
     def FrameUpdate(self):
         for i in range(self.cells_num):
             self.cell_list[i].CellInfoUpdate([int(j) for j in input().split()])
-
-    def ChangeState(self, state):
-        if state in self.STATES:
-            self.state = state
-
-    def EggAction(self):
-        target_type = CellInformation.EGG
-
-        if len(self.FindCellsOfType(target_type)) == 0:
-            self.ChangeState("CRYSTAL")
-            self.CrystalAction()
+            
+    def FindThreeIndexes(self):
+        closest_eggs = self.FindClosestTargetsOfType(CellInformation.EGG)
+        closest_crystals = self.FindClosestTargetsOfType(CellInformation.EGG)
+        number_of_eggs = len(self.FindCellsOfType(CellInformation.EGG))
+        if number_of_eggs >= 2:
+            return [ closest_eggs[0], closest_eggs[1], closest_crystals[0] ]
+        elif number_of_eggs == 1:
+            return [ closest_eggs[0], closest_crystals[0], closest_crystals[1] ]
         else:
-            self.MoveToClosestTargetsOfType(target_type)
+            return closest_crystals[0:2] 
+    
+    def FindThreeLineDistance(self, indexes):
+        sum_distances = 0
+        for i in range(len(indexes)):
+            sum_distances += self.FindDistance(indexes[i])
+        return sum_distances
+    
+    def FindTwoLineDistances(self, indexes):
+        two_line_distances = []
+        for i in range(len(indexes)):
+            current_indexes = indexes.copy()
+            current_indexes.remove(indexes[i])
+            
+            connected_distance_forward = self.connection_object.ComputeFloodFillDistance(self.my_base_indexes[0], current_indexes[0]) + self.connection_object.ComputeFloodFillDistance(current_indexes[0], current_indexes[1]) 
+            connected_distance_backward = self.connection_object.ComputeFloodFillDistance(self.my_base_indexes[0], current_indexes[1]) + self.connection_object.ComputeFloodFillDistance(current_indexes[1], current_indexes[0]) 
+            two_line_distances.append( ( current_indexes, i, connected_distance_forward ) )
+            two_line_distances.append( ( current_indexes.reverse(), i, connected_distance_backward ) ) 
 
-    def CrystalAction(self):
-        target_type = CellInformation.CRYSTAL
+        return two_line_distances
 
-        self.MoveToClosestTargetsOfType(target_type)
+    def FindOneLineDistances(self, indexes):
+        one_line_distances = []
+        for i in range(len(indexes)):
 
+            subtracted_index = indexes.copy()
+            subtracted_index.remove(subtracted_index[i])
+
+            for j in range(len(subtracted_index)):
+                final_index = subtracted_index.copy()
+                final_index.remove(final_index[j])
+                final_index = final_index[0]
+
+                distance = self.connection_object.ComputeFloodFillDistance(self.my_base_indexes[0], indexes[i])
+                distance += self.connection_object.ComputeFloodFillDistance(indexes[i], subtracted_index[j])
+                distance += self.connection_object.ComputeFloodFillDistance(subtracted_index[j], final_index)
+
+                one_line_distances.append( ( [indexes[i], subtracted_index[j], final_index], distance))
+        return one_line_distances
+
+    def ChooseOptimalGraph(self, independent_distance, two_line_distances, one_line_distances):
+        pass
+    
+    def Action(self):
+        indexes = self.FindThreeIndexes()
+        independent_distance = self.FindThreeLineDistance(indexes)
+        two_line_distances = self.FindTwoLineDistances(indexes)
+        one_line_distances = self.FindOneLineDistances(indexes)
+        self.ChooseOptimalGraph(independent_distance, two_line_distances, one_line_distances)
+        
 
 C = AlgorithmBot()
 
 # game loop
 while True:
     C.FrameUpdate()
-    if C.state == "EGG":
-        C.EggAction()
-    elif C.state == "CRYSTAL":
-        C.CrystalAction()
-
+    C.Action()
     # WAIT | LINE <sourceIdx> <targetIdx> <strength> | BEACON <cellIdx> <strength> | MESSAGE <text>
