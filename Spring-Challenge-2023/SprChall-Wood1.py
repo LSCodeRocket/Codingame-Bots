@@ -142,7 +142,12 @@ class AlgorithmBot:
     def FindClosestTargetsOfType(self, target_type, target_num):
         targets = self.FindCellsOfType(target_type)
         target_distances = np.array(
-            [self.FindDistance(target.cell_index) for target in targets]
+            [
+                self.connection_object.ComputeFloodFillDistance(
+                    self.my_base_indexes[0], target.cell_index
+                )
+                for target in targets
+            ]
         )
 
         closest_targets = []
@@ -168,91 +173,19 @@ class AlgorithmBot:
 
     def FindThreeTargets(self):
         closest_eggs = self.FindClosestTargetsOfType(CellInformation.EGG, 2)
-        closest_crystals = self.FindClosestTargetsOfType(CellInformation.CRYSTAL, 3)
+        number_of_crystals = 3 - len(closest_eggs)
+        closest_crystals = self.FindClosestTargetsOfType(
+            CellInformation.CRYSTAL, number_of_crystals
+        )
         targets = [
-            *[closest_eggs[i] for i in closest_eggs],
-            *[closest_crystals[i] for i in 3 - len(closest_eggs)],
+            *[egg for egg in closest_eggs],
+            *[crystal for crystal in closest_crystals],
         ]
+        DebugLog(targets)
         return targets
 
-    def FindThreeLineDistance(self, indexes):
-        return sum(
-            [
-                self.connection_object.ComputeFloodFillDistance(
-                    self.my_base_indexes[0], index
-                )
-                for index in indexes
-            ]
-        )
-
-    def FindTwoLineDistances(self, indexes):
-        two_line_distances = []
-        for i in range(len(indexes)):
-            current_indexes = indexes.copy()
-            current_indexes.remove(indexes[i])
-
-            connected_distance_forward = (
-                self.connection_object.ComputeFloodFillDistance(
-                    self.my_base_indexes[0], current_indexes[0]
-                )
-                + self.connection_object.ComputeFloodFillDistance(
-                    current_indexes[0], current_indexes[1]
-                )
-            )
-            connected_distance_backward = (
-                self.connection_object.ComputeFloodFillDistance(
-                    self.my_base_indexes[0], current_indexes[1]
-                )
-                + self.connection_object.ComputeFloodFillDistance(
-                    current_indexes[1], current_indexes[0]
-                )
-            )
-            two_line_distances.append((current_indexes, i, connected_distance_forward))
-            two_line_distances.append(
-                (current_indexes.reverse(), i, connected_distance_backward)
-            )
-
-        return two_line_distances
-
-    def FindOneLineDistances(self, indexes):
-        one_line_distances = []
-        for i in range(len(indexes)):
-            subtracted_index = indexes.copy()
-            subtracted_index.remove(subtracted_index[i])
-
-            for j in range(len(subtracted_index)):
-                final_index = subtracted_index.copy()
-                final_index.remove(final_index[j])
-                final_index = final_index[0]
-
-                distance = self.connection_object.ComputeFloodFillDistance(
-                    self.my_base_indexes[0], indexes[i]
-                )
-                distance += self.connection_object.ComputeFloodFillDistance(
-                    indexes[i], subtracted_index[j]
-                )
-                distance += self.connection_object.ComputeFloodFillDistance(
-                    subtracted_index[j], final_index
-                )
-
-                one_line_distances.append(
-                    ([indexes[i], subtracted_index[j], final_index], distance)
-                )
-        return one_line_distances
-
-    def ChooseOptimalGraph(
-        self, independent_distance, two_line_distances, one_line_distances
-    ):
-        pass
-
     def Action(self):
-        indexes = self.FindThreeTargets()
-        independent_distance = self.FindThreeLineDistance(indexes)
-        two_line_distances = self.FindTwoLineDistances(indexes)
-        one_line_distances = self.FindOneLineDistances(indexes)
-        self.ChooseOptimalGraph(
-            independent_distance, two_line_distances, one_line_distances
-        )
+        self.MoveToTargets(self.FindThreeTargets())
 
 
 C = AlgorithmBot()
