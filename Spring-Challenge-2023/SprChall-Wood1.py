@@ -168,10 +168,13 @@ class AlgorithmBot:
 
     def FindThreeTargets(self):
         closest_eggs = self.FindClosestTargetsOfType(CellInformation.EGG, 2)
-        closest_crystals = self.FindClosestTargetsOfType(CellInformation.CRYSTAL, 3)
+        number_of_crystals = 3 - len(closest_eggs)
+        closest_crystals = self.FindClosestTargetsOfType(
+            CellInformation.CRYSTAL, number_of_crystals
+        )
         targets = [
-            *[closest_eggs[i] for i in closest_eggs],
-            *[closest_crystals[i] for i in 3 - len(closest_eggs)],
+            *[egg for egg in closest_eggs],
+            *[crystal for crystal in closest_crystals],
         ]
         return targets
 
