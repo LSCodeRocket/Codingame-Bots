@@ -138,6 +138,10 @@ class AlgorithmBot:
 
     def FindCellsOfType(self, cell_type):
         return [cell for cell in self.cell_list if cell.cell_type == cell_type]
+    
+    def FindNonEmptyCellsOfType(self, cell_type):
+        return [cell for cell in self.cell_list if cell.cell_type == cell_type and cell.resources != 0]
+        
 
     def FindClosestTargetsOfType(self, target_type, target_num):
         targets = self.FindCellsOfType(target_type)
@@ -148,6 +152,21 @@ class AlgorithmBot:
                 )
                 for target in targets
             ]
+        )
+
+        closest_targets = []
+
+        for i in range(min(target_num, len(targets))):
+            index = target_distances.argmin()
+            closest_targets.append(targets[index].cell_index)
+            target_distances[index] = target_distances.max() + 1
+
+        return closest_targets
+
+    def FindClosestNonEmptyTargetsOfType(self, target_type, target_num):
+        targets = self.FindNonEmptyCellsOfType(target_type)
+        target_distances = np.array(
+            [self.FindDistance(target.cell_index) for target in targets]
         )
 
         closest_targets = []
@@ -183,6 +202,15 @@ class AlgorithmBot:
         ]
         return targets
 
+    def FindThreeNonEmptyTargets(self):
+        closest_eggs = self.FindClosestNonEmptyTargetsOfType(CellInformation.EGG, 2)
+        closest_crystals = self.FindClosestNonEmptyTargetsOfType(CellInformation.CRYSTAL, 3)
+        targets = [
+            *[closest_eggs[i] for i in closest_eggs],
+            *[closest_crystals[i] for i in 3 - len(closest_eggs)],
+        ]
+        return targets
+
     def FindThreeLineDistance(self, indexes):
         return sum(
             [
@@ -195,6 +223,7 @@ class AlgorithmBot:
 
     def FindTwoLineDistances(self, indexes):
         two_line_distances = []
+        two_line_references = []
         for i in range(len(indexes)):
             current_indexes = indexes.copy()
             current_indexes.remove(indexes[i])
@@ -215,15 +244,16 @@ class AlgorithmBot:
                     current_indexes[1], current_indexes[0]
                 )
             )
-            two_line_distances.append((current_indexes, i, connected_distance_forward))
-            two_line_distances.append(
-                (current_indexes.reverse(), i, connected_distance_backward)
-            )
+            two_line_references.append([current_indexes, i])
+            two_line_distances.append(connected_distance_forward)
+            two_line_references.append([current_indexes.reverse(), i])
+            two_line_distances.append(connected_distance_backward)
 
-        return two_line_distances
+        return (two_line_references, two_line_distances)
 
     def FindOneLineDistances(self, indexes):
         one_line_distances = []
+        one_line_references = []
         for i in range(len(indexes)):
             subtracted_index = indexes.copy()
             subtracted_index.remove(subtracted_index[i])
@@ -243,25 +273,108 @@ class AlgorithmBot:
                     subtracted_index[j], final_index
                 )
 
-                one_line_distances.append(
-                    ([indexes[i], subtracted_index[j], final_index], distance)
-                )
-        return one_line_distances
+                one_line_references.append([indexes[i], subtracted_index[j], final_index])
+                one_line_distances.append(distance)
 
-    def ChooseOptimalGraph(
-        self, independent_distance, two_line_distances, one_line_distances
-    ):
-        pass
+        return (one_line_references, one_line_distances)
 
-    def Action(self):
-        indexes = self.FindThreeTargets()
+    def MoveToAndFromSelectCells(self, paths_and_weights):
+        print(
+            *[
+                f"LINE {path_and_weight[0][0]} {path_and_weight[0][1]} {path_and_weight[1]};"
+                for path_and_weight in paths_and_weights
+            ]
+        )
+        
+    def MoveWithIndependentPaths(self, indexes):
+        self.MoveToTargets(indexes)
+        
+
+    def GetCellResources(self, cell):
+        return self.cell_list[cell].resources
+
+    def MoveWithTwoLinePath(self, best_two_line_path):
+        dual_line = best_two_line_path[0].copy()
+        dual_line.insert(0, self.my_base_indexes[0])
+
+        independent_index = best_two_line_path[1]
+        paths_and_weights = [] 
+        max_resources = max([self.GetCellResources(dual_line[i+1]) for i in range(2)])
+        
+        for i in range(2):
+            paths_and_weights.append([[dual_line[i], dual_line[i+1]], max_resources])
+
+        paths_and_weights.append([ [self.my_base_indexes[0], independent_index ], self.GetCellResources(independent_index)])
+
+        self.MoveToAndFromSelectCells(paths_and_weights)
+
+    def MoveWithOneLinePath(self, best_one_line_path):
+        triple_line = best_one_line_path[0].copy()
+        triple_line.insert(0, self.my_base_indexes[0])
+        
+        paths_and_weights = [] 
+        max_resources = max([self.GetCellResources(triple_line[i+1]) for i in range(3)])
+        
+        for i in range(3):
+            paths_and_weights.append([[triple_line[i], triple_line[i+1]], max_resources])
+
+        self.MoveToAndFromSelectCells(paths_and_weights)
+        
+    def ChooseOptimalGraph(self, indexes, independent_distance, two_line_reference_arrays, one_line_reference_arrays):
+        two_line_references, two_line_distances = two_line_reference_arrays
+        one_line_references, one_line_distances = one_line_reference_arrays
+
+        minimum_distance_type = np.array([independent_distance, min(two_line_distances), min(one_line_distances)]).argmin()
+
+        if minimum_distance_type == 0:
+            self.MoveWithIndependentPaths(indexes)
+
+        elif minimum_distance_type == 1:
+            best_two_line_path = two_line_references[np.array(two_line_distances).argmin()]
+            self.MoveWithTwoLinePath(best_two_line_path)
+        
+        else:
+            best_one_line_path = one_line_references[np.array(one_line_distances).argmin()]
+            self.MoveWithOneLinePath(best_one_line_path)
+            
+
+    def DecideTargetIndexesBasedOnNumber(self, crystal_indexes, egg_indexes):
+        if len(egg_indexes) >= 2:
+            return [crystal_indexes[0], egg_indexes[0], egg_indexes[1]]
+        
+        elif len(egg_indexes) == 1:
+            if len(crystal_indexes) > 1:
+                return [crystal_indexes[0], crystal_indexes[1], egg_indexes[0]]
+            else:
+                return [crystal_indexes[0], crystal_indexes[1], egg_indexes[0]]
+        else:
+            if len(crystal_indexes) >= 2:
+                return [crystal_indexes[0], crystal_indexes[1]]
+            else:
+                return [crystal_indexes[0]]
+
+    def NormalThreeIndexPath(self, indexes):
         independent_distance = self.FindThreeLineDistance(indexes)
         two_line_distances = self.FindTwoLineDistances(indexes)
         one_line_distances = self.FindOneLineDistances(indexes)
-        self.ChooseOptimalGraph(
-            independent_distance, two_line_distances, one_line_distances
-        )
+        self.ChooseOptimalGraph(indexes, independent_distance, two_line_distances, one_line_distances)
 
+    def AbnormalTwoIndexPath(self, indexes):
+        self.MoveToTargets(indexes)
+
+    def FindDistance(self, cell):
+        return self.connection_object.ComputeFloodFillDistance(self.my_base_indexes[0], cell)
+
+    def Action(self):
+        crystal_indexes = self.FindClosestNonEmptyTargetsOfType(CellInformation.CRYSTAL, 2)
+        egg_indexes = self.FindClosestNonEmptyTargetsOfType(CellInformation.EGG, 2)
+        indexes = self.DecideTargetIndexesBasedOnNumber(crystal_indexes, egg_indexes)
+        if len(indexes) == 3:
+            self.NormalThreeIndexPath(indexes)
+        elif len(indexes) == 2:
+            self.AbnormalTwoIndexPath(indexes)
+        else:
+            self.MoveToTargets(indexes)
 
 C = AlgorithmBot()
 
